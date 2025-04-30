@@ -28,14 +28,29 @@ class DocumentController extends Controller
         $request->validate([
             'document' => ['required', File::types('pdf')->extensions('pdf')->max(20 * 1024)],
             'expires_at' => ['nullable', 'date', 'after:today'],
+            // The regex is to enforce only safe characters
+            'custom_file_name' => ['nullable', 'string', 'max:255', 'regex:/^[a-zA-Z0-9_\-. ]+$/'],
         ]);
 
         $user = $request->user();
         $file = $request->file('document');
 
+        $fileNameWithExtension = $file->getClientOriginalName();
+        // Use custom name (with .pdf extension) if provided
+        if ($customFileName = $request->string('custom_file_name')) {
+            // Make sure the file name ends with extension
+            if (! $customFileName->endsWith('.pdf')) {
+                $customFileName = $customFileName->append('.pdf');
+            }
+
+            $fileNameWithExtension = $customFileName->toString();
+
+            // TODO: Should do extra sanitization like: non-ASCII chars, path traversal/overwriting...
+        }
+
         $document = new Document();
-        $document->name = $file->getClientOriginalName();
-        $document->path = $file->store('documents/'.$user->id);
+        $document->name = $fileNameWithExtension;
+        $document->path = $file->storeAs('documents/'.$user->id, $fileNameWithExtension);
         $document->owner_id = $user->id;
         $document->expires_at = $request->date('expires_at');
         $document->save();
