@@ -10,8 +10,14 @@ class DocumentController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+
         return DocumentResource::collection(
-            resource: Document::all()
+            resource: Document::query()
+                ->whereBelongsTo($user, 'owner')
+                ->whereNotNull('expires_at')
+                ->whereDate('expires_at', '<=', now()->addDays(7))
+                ->get(),
         );
     }
 
