@@ -67,8 +67,14 @@ class DocumentController extends Controller
         return DocumentResource::make($document);
     }
 
-    public function show(Document $document)
+    public function show(Document $document, Request $request)
     {
+        $user = $request->user();
+
+        if ($document->owner_id !== $user->id) {
+            abort(404, 'Document not found.');
+        }
+
         return DocumentResource::make($document);
     }
 
