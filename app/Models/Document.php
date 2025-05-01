@@ -40,6 +40,7 @@ class Document extends Model
 
     protected $casts = [
         'expires_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo

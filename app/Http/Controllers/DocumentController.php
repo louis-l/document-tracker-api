@@ -18,6 +18,7 @@ class DocumentController extends Controller
                 ->whereBelongsTo($user, 'owner')
                 ->whereNotNull('expires_at')
                 ->whereDate('expires_at', '<=', now()->addDays(7))
+                ->whereNull('archived_at')
                 ->get(),
         );
     }
@@ -50,7 +51,7 @@ class DocumentController extends Controller
 
         $document = new Document();
         $document->name = $fileNameWithExtension;
-        $document->path = $file->storeAs('documents/'.$user->id, $fileNameWithExtension);
+        $document->path = $file->store('documents/'.$user->id);
         $document->owner_id = $user->id;
         $document->expires_at = $request->date('expires_at');
         $document->save();
@@ -61,5 +62,23 @@ class DocumentController extends Controller
     public function show(Document $document)
     {
         return DocumentResource::make($document);
+    }
+
+    public function archive(Document $document, Request $request)
+    {
+        $user = $request->user();
+
+        if ($document->owner_id !== $user->id) {
+            abort(404, 'Document not found.');
+        }
+
+        if ($document->archived_at) {
+            abort(403, 'Document is already archived.');
+        }
+
+        $document->archived_at = now();
+        $document->save();
+
+        return response()->noContent();
     }
 }
