@@ -4,22 +4,30 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\DocumentResource;
 use App\Models\Document;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 
 class DocumentController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'filter' => ['nullable', 'string', Rule::in(['all', 'expiring_soon', 'already_expired'])],
+        ]);
+
         $user = $request->user();
+        $documentFilter = $request->input('filter');
 
         return DocumentResource::collection(
             resource: Document::query()
                 ->whereBelongsTo($user, 'owner')
-                ->whereNotNull('expires_at')
-                ->whereDate('expires_at', '<=', now()->addDays(7))
+                ->when($documentFilter === 'expiring_soon', fn (Builder $query) => $query->whereBetween('expires_at', [now(), now()->addDays(7)]))
+                ->when($documentFilter === 'already_expired', fn (Builder $query) => $query->whereDate('expires_at', '<=', now()))
                 ->whereNull('archived_at')
-                ->get(),
+                ->orderByDesc('id')
+                ->paginate($request->integer('per_page', 10)),
         );
     }
 
